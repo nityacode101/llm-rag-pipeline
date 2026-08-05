@@ -1,0 +1,25 @@
+FAISS Vector Search Notes
+=========================
+
+FAISS (Facebook AI Similarity Search) is a library for efficient similarity search
+and clustering of dense vectors. It is widely used in RAG systems because it can
+search millions of embedding vectors with low latency.
+
+Cosine similarity
+-----------------
+Cosine similarity measures the angle between two vectors and is well-suited for
+normalized text embeddings. Higher scores mean closer semantic meaning.
+
+Indexing workflow
+-----------------
+1. Convert document chunks into embedding vectors with an embedding model.
+2. Add vectors to a FAISS index (flat, IVF, or HNSW depending on scale).
+3. Persist the index to disk for reuse across server restarts.
+4. At query time, embed the user question and search for the nearest neighbors.
+
+Latency considerations
+----------------------
+Keeping the FAISS index in memory and reusing embedding clients across requests
+cuts average response time substantially versus rebuilding state per request.
+Async FastAPI handlers can accept concurrent queries while blocking embedding
+and FAISS work runs in a thread pool.
