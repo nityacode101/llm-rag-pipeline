@@ -16,9 +16,11 @@ build/
 .mypy_cache/
 .ruff_cache/
 
-# Vector store & uploads
-data/vectorstore/
-data/uploads/
+# Vector store & uploads (keep folder placeholders)
+data/vectorstore/*
+!data/vectorstore/.gitkeep
+data/uploads/*
+!data/uploads/.gitkeep
 *.faiss
 *.pkl
 
