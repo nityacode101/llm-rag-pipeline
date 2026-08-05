@@ -17,11 +17,14 @@ class Settings(BaseSettings):
     gemini_chat_model: str = "gemini-2.0-flash"
     gemini_embedding_model: str = "models/text-embedding-004"
 
+    # Offline smoke mode (hashing embeddings + extractive answers). Use only for local demos.
+    demo_mode: bool = False
+
     chunk_size: int = 800
     chunk_overlap: int = 150
 
     top_k: int = 3
-    similarity_threshold: float = 0.3
+    similarity_threshold: float = 0.15
 
     host: str = "0.0.0.0"
     port: int = 8000

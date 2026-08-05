@@ -3,6 +3,13 @@ import sys
 
 
 def setup_logging(level: str = "INFO") -> None:
+    # Avoid Windows console UnicodeEncodeError on non-ASCII log messages.
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     root = logging.getLogger()
     if root.handlers:
         root.setLevel(level.upper())
