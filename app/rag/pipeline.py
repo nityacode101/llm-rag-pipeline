@@ -9,14 +9,10 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from langchain_core.documents import Document
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import Settings, get_settings
-from app.models.schemas import (
-    IngestResponse,
-    QueryResponse,
-    SourceDocument,
-)
+from app.models.schemas import IngestResponse, QueryResponse, SourceDocument
 from app.rag.chunking import chunk_documents, load_document, load_documents_from_dir
 from app.rag.embeddings import build_embeddings
 from app.rag.indexer import VectorStoreManager
@@ -24,10 +20,27 @@ from app.rag.retriever import SemanticRetriever
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a helpful assistant that answers questions using ONLY the provided context.
-If the context does not contain enough information, say you don't know based on the available documents.
-Be concise, accurate, and cite source filenames when relevant.
-Do not invent facts outside the context."""
+SYSTEM_PROMPT = (
+    "You are a helpful assistant that answers questions using ONLY the provided context. "
+    "If the context does not contain enough information, say you don't know based on the "
+    "available documents. Be concise, accurate, and cite source filenames when relevant. "
+    "Do not invent facts outside the context."
+)
+
+
+def build_llm(settings: Settings):
+    if settings.demo_mode:
+        logger.warning("DEMO_MODE enabled — generation will be extractive (not Gemini)")
+        return None
+
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    logger.info("Initializing Gemini chat model: %s", settings.gemini_chat_model)
+    return ChatGoogleGenerativeAI(
+        model=settings.gemini_chat_model,
+        google_api_key=settings.gemini_api_key,
+        temperature=0.2,
+    )
 
 
 class RAGPipeline:
@@ -39,11 +52,7 @@ class RAGPipeline:
         self.embeddings = build_embeddings(self.settings)
         self.store_manager = VectorStoreManager(self.embeddings, self.settings)
         self.retriever = SemanticRetriever(self.store_manager, self.settings)
-        self.llm = ChatGoogleGenerativeAI(
-            model=self.settings.gemini_chat_model,
-            google_api_key=self.settings.gemini_api_key,
-            temperature=0.2,
-        )
+        self.llm = build_llm(self.settings)
 
         loaded = self.store_manager.load()
         if loaded:
@@ -68,13 +77,25 @@ class RAGPipeline:
         return "\n\n---\n\n".join(parts)
 
     def _generate(self, question: str, context: str) -> str:
-        prompt = (
-            f"{SYSTEM_PROMPT}\n\n"
-            f"Context:\n{context}\n\n"
-            f"Question: {question}\n\n"
-            f"Answer:"
+        if self.settings.demo_mode or self.llm is None:
+            return (
+                "[DEMO_MODE] Gemini is not configured. "
+                "Most relevant retrieved context:\n\n"
+                f"{context[:1200]}"
+            )
+
+        response = self.llm.invoke(
+            [
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(
+                    content=(
+                        f"Context:\n{context}\n\n"
+                        f"Question: {question}\n\n"
+                        f"Answer:"
+                    )
+                ),
+            ]
         )
-        response = self.llm.invoke(prompt)
         content = response.content
         if isinstance(content, list):
             return " ".join(str(part) for part in content)
@@ -109,9 +130,10 @@ class RAGPipeline:
 
             latency_ms = (time.perf_counter() - started) * 1000
             logger.info(
-                "Query completed in %.1fms (retrieved=%d)",
+                "Query completed in %.1fms (retrieved=%d, backend=%s)",
                 latency_ms,
                 len(hits),
+                self.store_manager.backend_name,
             )
             return QueryResponse(
                 answer=answer,
@@ -171,10 +193,11 @@ class RAGPipeline:
 
             latency_ms = (time.perf_counter() - started) * 1000
             logger.info(
-                "Ingested %d docs → %d chunks in %.1fms",
+                "Ingested %d docs -> %d chunks in %.1fms (backend=%s)",
                 len(documents),
                 count,
                 latency_ms,
+                self.store_manager.backend_name,
             )
             return IngestResponse(
                 message=f"Indexed documents from {docs_dir}",
@@ -188,4 +211,6 @@ class RAGPipeline:
             "status": "ok",
             "vectorstore_ready": self.store_manager.is_ready,
             "indexed_chunks": self.store_manager.indexed_count(),
+            "backend": self.store_manager.backend_name,
+            "demo_mode": self.settings.demo_mode,
         }

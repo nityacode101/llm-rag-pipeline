@@ -19,10 +19,12 @@ build/
 # Vector store & uploads (keep folder placeholders)
 data/vectorstore/*
 !data/vectorstore/.gitkeep
+data/vectorstore_demo/
 data/uploads/*
 !data/uploads/.gitkeep
 *.faiss
 *.pkl
+*.npy
 
 # IDE / OS
 .vscode/

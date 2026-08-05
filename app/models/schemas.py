@@ -31,3 +31,5 @@ class HealthResponse(BaseModel):
     status: str
     vectorstore_ready: bool
     indexed_chunks: int
+    backend: str = "none"
+    demo_mode: bool = False
