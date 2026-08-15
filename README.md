@@ -38,21 +38,20 @@ gemini-rag-pipeline/
 ## Quick start
 
 ```powershell
-cd C:\Users\user\Downloads\gemini-rag-pipeline
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Edit `.env` and set `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com/apikey). Keep `DEMO_MODE=false`.
+Edit `.env` and set `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com/apikey). Keep `DEMO_MODE=false`. Never commit `.env`.
 
 ```powershell
 python scripts\ingest.py
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs). The default bind is localhost so other devices cannot spend your Gemini quota. If you later bind to `0.0.0.0`, set `APP_API_TOKEN` and send it as header `X-API-Key`.
 
 ### Offline smoke test (no API key)
 
@@ -74,6 +73,7 @@ python scripts\smoke_test.py
 ```powershell
 curl -X POST http://127.0.0.1:8000/api/v1/query `
   -H "Content-Type: application/json" `
+  -H "X-API-Key: your_app_token_if_set" `
   -d "{\"question\": \"What is RAG and why does chunk overlap help?\"}"
 ```
 

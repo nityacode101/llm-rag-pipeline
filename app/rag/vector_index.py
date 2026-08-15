@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import pickle
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -114,7 +113,7 @@ class NumpyCosineIndex:
 
     @classmethod
     def load(cls, path: Path) -> "NumpyCosineIndex":
-        matrix = np.load(path)
+        matrix = np.load(path, allow_pickle=False)
         return cls(dim=matrix.shape[1], matrix=matrix)
 
 
@@ -138,7 +137,7 @@ class DocumentVectorIndex:
     """Embed + store documents and retrieve by cosine similarity."""
 
     META_FILE = "meta.json"
-    DOCS_FILE = "documents.pkl"
+    DOCS_FILE = "documents.json"
     FAISS_FILE = "index.faiss"
     NUMPY_FILE = "index.npy"
 
@@ -225,8 +224,10 @@ class DocumentVectorIndex:
         else:
             self.backend.save(directory / self.NUMPY_FILE)
 
-        with (directory / self.DOCS_FILE).open("wb") as f:
-            pickle.dump(self.documents, f)
+        (directory / self.DOCS_FILE).write_text(
+            json.dumps(self.documents, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
         meta = {
             "backend": self.backend_name,
@@ -254,8 +255,10 @@ class DocumentVectorIndex:
         backend_name = meta.get("backend", "faiss")
 
         try:
-            with docs_path.open("rb") as f:
-                self.documents = pickle.load(f)
+            loaded = json.loads(docs_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, list):
+                raise ValueError("documents.json must contain a list")
+            self.documents = loaded
 
             if backend_name == "faiss" and (directory / self.FAISS_FILE).exists():
                 self.backend = FaissIPIndex.load(directory / self.FAISS_FILE)

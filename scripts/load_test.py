@@ -19,11 +19,21 @@ QUESTIONS = [
 ]
 
 
+def _headers() -> dict[str, str]:
+    import os
+
+    token = (os.getenv("APP_API_TOKEN") or "").strip()
+    if not token:
+        return {}
+    return {"X-API-Key": token}
+
+
 async def one_query(client: httpx.AsyncClient, question: str) -> float:
     started = time.perf_counter()
     response = await client.post(
         "/api/v1/query",
         json={"question": question, "include_sources": True},
+        headers=_headers(),
         timeout=120.0,
     )
     response.raise_for_status()

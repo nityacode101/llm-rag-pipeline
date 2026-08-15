@@ -26,9 +26,14 @@ class Settings(BaseSettings):
     top_k: int = 3
     similarity_threshold: float = 0.15
 
-    host: str = "0.0.0.0"
+    # Local-only by default so a Gemini key is not exposed on the LAN/internet.
+    host: str = "127.0.0.1"
     port: int = 8000
     log_level: str = "INFO"
+
+    # Optional shared secret. If set, /query and /ingest require header X-API-Key.
+    app_api_token: str = ""
+    max_upload_bytes: int = 10 * 1024 * 1024
 
     data_dir: Path = BASE_DIR / "data"
     docs_dir: Path = BASE_DIR / "data" / "sample_docs"
