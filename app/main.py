@@ -22,6 +22,13 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     setup_logging(settings.log_level)
     logger.info("Starting Gemini RAG Pipeline v%s", __version__)
+    if settings.host not in {"127.0.0.1", "localhost"} and not settings.app_api_token:
+        logger.warning(
+            "Server is bound to %s without APP_API_TOKEN. "
+            "Anyone who can reach this port can spend your Gemini quota. "
+            "Use HOST=127.0.0.1 or set APP_API_TOKEN.",
+            settings.host,
+        )
     try:
         init_pipeline()
         logger.info("RAG pipeline initialized")
@@ -46,10 +53,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 app.include_router(router, prefix="/api/v1", tags=["rag"])
